@@ -23,6 +23,10 @@ var htmlTemplate = `<!DOCTYPE html>
         tr:nth-child(even) { background-color: #f9f9f9; }
         h1, h2 { color: #333; }
 
+		/* 添加一个名为 'grey-column' 的类，用于控制第一列的灰色背景 */
+        .grey-column td:first-child {
+            background-color: #666666;
+        }
     </style>
 
 </head>
@@ -53,8 +57,8 @@ var htmlTemplate = `<!DOCTYPE html>
             {{end}}
         {{end}}
         {{with $testCase := index $.Suite.TestCases $caseID}}
-                <tr>
-                    <td>{{$caseID}}</td>
+                <tr class="grey-column">
+                    <td>Case {{$caseID}}</td>
                     <td>{{$testCase.Behavior}}</td>
                     <td>{{$testCase.BehaviorClose}}</td>
                     <td>{{$testCase.Duration}}</td>
