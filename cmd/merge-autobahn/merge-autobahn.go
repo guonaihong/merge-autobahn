@@ -13,57 +13,59 @@ import (
 var htmlTemplate = `<!DOCTYPE html>
 <html lang="en">
 <head>
-	<meta charset="UTF-8">
-	<title>Autobahn Testsuite Report</title>
-	<style>
-		body { font-family: Arial, sans-serif; }
-		table { width: 100%; border-collapse: collapse; }
-		th, td { border: 1px solid #ddd; padding: 8px; }
-		th { background-color: #f2f2f2; }
-		tr:nth-child(even) { background-color: #f9f9f9; }
-		h1, h2 { color: #333; }
-	</style>
+    <meta charset="UTF-8">
+    <title>Autobahn Testsuite Report</title>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #ddd; padding: 8px; }
+        th { background-color: #f2f2f2; }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+        h1, h2 { color: #333; }
+
+    </style>
+
 </head>
 <body>
-	<h1>Autobahn Testsuite Report</h1>
-	{{$printedTitle := false}}
-	{{range $caseID := .CaseIDs}}
-		{{with $group := findGroupTitle $caseID $.GroupTitles}}
+    <h1>Autobahn Testsuite Report</h1>
+    {{$printedGroupHeader := false}}
+	<table>
+	<tr>
+		<th>ID</th>
+		<th>Behavior</th>
+		<th>Close Behavior</th>
+		<th>Duration</th>
+		<th>Close Code</th>
+		<th>Report File</th>
+	</tr>
+    {{range $caseID := .CaseIDs}}
+        {{$group := findGroupTitle $caseID $.GroupTitles}}
+        {{with $group}}
+            {{if .ParentTitle}}
+				<tr> 
+					<td>{{.ParentTitle}} </td>
+				</tr>
+            {{end}}
             {{if .Title}}
-                {{if not $printedTitle}}
-                    <h1>{{getGroupTitle $.GroupTitles "1"}}</h1>
-                    {{$printedTitle = true}}
-                {{end}}
-                <h2>{{.Title}}</h2>
+				<tr> 
+					<td> {{.Title}} </td>
+				</tr>
             {{end}}
         {{end}}
-		{{with $testCase := index $.Suite.TestCases $caseID}}
-			<table>
-				<thead>
-					<tr>
-						<th>ID</th>
-						<th>Behavior</th>
-						<th>Close Behavior</th>
-						<th>Duration</th>
-						<th>Close Code</th>
-						<th>Report File</th>
-					</tr>
-				</thead>
-				<tbody>
-					<tr>
-						<td>{{$caseID}}</td>
-						<td>{{$testCase.Behavior}}</td>
-						<td>{{$testCase.BehaviorClose}}</td>
-						<td>{{$testCase.Duration}}</td>
-						<td>{{$testCase.RemoteCloseCode}}</td>
-						<td>{{$testCase.ReportFile}}</td>
-					</tr>
-				</tbody>
-			</table>
-		{{end}}
-	{{else}}
-		<p>No test cases found.</p>
-	{{end}}
+        {{with $testCase := index $.Suite.TestCases $caseID}}
+                <tr>
+                    <td>{{$caseID}}</td>
+                    <td>{{$testCase.Behavior}}</td>
+                    <td>{{$testCase.BehaviorClose}}</td>
+                    <td>{{$testCase.Duration}}</td>
+                    <td>{{$testCase.RemoteCloseCode}}</td>
+                    <td>{{$testCase.ReportFile}}</td>
+                </tr>
+        {{end}}
+    {{else}}
+        <p>No test cases found.</p>
+    {{end}}
+	</table>
 </body>
 </html>
 `
@@ -88,9 +90,9 @@ type GroupTitle struct {
 	ParentTitle string `json:"parentTitle"`
 }
 
-// findGroupTitle 试图为给定的 caseID 找到最特定的组标题。
+// findGroupTitle tries to find the most specific group title for the given caseID.
 func findGroupTitle(caseID string, groups map[string]GroupTitle, status map[string]bool) GroupTitle {
-	// 以降序方式遍历键，以匹配最长的前缀。
+	// Traverse keys in descending order to match the longest prefix.
 	keys := make([]string, 0, len(groups))
 	for k := range groups {
 		keys = append(keys, k)
@@ -112,6 +114,28 @@ func findGroupTitle(caseID string, groups map[string]GroupTitle, status map[stri
 	return GroupTitle{}
 }
 
+func versionCompare(version1, version2 string) int {
+	i, j := 0, 0
+	for i < len(version1) || j < len(version2) {
+		var num1, num2 int
+		for i < len(version1) && version1[i] != '.' {
+			num1 = num1*10 + int(version1[i]-'0')
+			i++
+		}
+		for j < len(version2) && version2[j] != '.' {
+			num2 = num2*10 + int(version2[j]-'0')
+			j++
+		}
+		if num1 < num2 {
+			return -1
+		} else if num1 > num2 {
+			return 1
+		}
+		i++
+		j++
+	}
+	return 0
+}
 func main() {
 	// Read the JSON file
 	jsonData, err := os.ReadFile("index.json")
@@ -194,7 +218,10 @@ func main() {
 	for caseID := range suite.TestCases {
 		sortedCaseIDs = append(sortedCaseIDs, caseID)
 	}
-	sort.Strings(sortedCaseIDs)
+	// sort.Strings(sortedCaseIDs)
+	sort.Slice(sortedCaseIDs, func(i, j int) bool {
+		return versionCompare(sortedCaseIDs[i], sortedCaseIDs[j]) == -1
+	})
 
 	status := make(map[string]bool)
 	// Define an HTML template for the output with inline CSS
