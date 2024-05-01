@@ -49,8 +49,6 @@ var htmlTemplate = `<!DOCTYPE html>
 	<tr>
 		<th>ID</th>
 		<th>Behavior</th>
-		<th>Close Behavior</th>
-		<th>Duration</th>
 		<th>Close Code</th>
 	</tr>
     {{range $caseID := .CaseIDs}}
@@ -70,10 +68,26 @@ var htmlTemplate = `<!DOCTYPE html>
         {{with $testCase := index $.Suite.TestCases $caseID}}
                 <tr class="green-column">
                     <td class="grey-column">Case {{$caseID}}</td>
-                    <td>{{$testCase.Behavior}}</td>
-                    <td>{{$testCase.BehaviorClose}}</td>
-                    <td>{{$testCase.Duration}}</td>
-                    <td>{{$testCase.RemoteCloseCode}}</td>
+
+					<td>
+						{{if eq $testCase.Behavior "OK"}}
+							Pass
+						{{else}}
+							{{$testCase.Behavior}}
+						{{end}}
+						<br>
+						{{if gt $testCase.Duration 0}}
+							{{$testCase.Duration}}ms
+						{{end}}
+					</td>
+
+					<td>
+						{{if eq $testCase.RemoteCloseCode 0}}
+							None
+						{{else}}
+							{{$testCase.RemoteCloseCode}}
+						{{end}}
+					</td>
                 </tr>
         {{end}}
     {{else}}
