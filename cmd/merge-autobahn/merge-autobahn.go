@@ -67,10 +67,10 @@ var htmlTemplate = `<!DOCTYPE html>
         {{end}}
 		{{range $index, $title := $.Titles}}
 			{{$testCases := index $.Suite.TestCases $title}}
-			{{with $testCase := index $testCases $caseID}}
-					<tr class="green-column">
-						<td class="grey-column">Case {{$caseID}}</td>
+			<tr class="green-column">
+				<td class="grey-column">Case {{$caseID}}</td>
 
+				{{with $testCase := index $testCases $caseID}}
 						<td style="{{if eq $testCase.Behavior "FAILED"}}background-color: #990000;{{end}}">
 							<a href="{{$testCase.ReportFile}}">
 								{{if eq $testCase.Behavior "OK"}}
@@ -96,10 +96,8 @@ var htmlTemplate = `<!DOCTYPE html>
 								{{$testCase.RemoteCloseCode}}
 							{{end}}
 						</td>
-
-
-					</tr>
-			{{end}}
+				{{end}}
+			</tr>
         {{end}}
     {{else}}
         <p>No test cases found.</p>
@@ -177,8 +175,8 @@ func versionCompare(version1, version2 string) int {
 }
 
 type Cmd struct {
-	FromDir   string `clop:"-f; --from" usage:"input directory"`
-	OutputDir string `clop:"-o; --output" usage:"output directory"`
+	FromDir   []string `clop:"-f; --from" usage:"input directory"`
+	OutputDir string   `clop:"-o; --output" usage:"output directory"`
 }
 
 // copyFile copies a file from the source to the destination.
@@ -232,28 +230,34 @@ func main() {
 	var c Cmd
 	clop.MustBind(&c)
 
-	if c.FromDir == "" || c.OutputDir == "" {
+	if len(c.FromDir) == 0 || c.OutputDir == "" {
 		clop.Usage()
 		os.Exit(1)
-	}
-	if c.FromDir != c.OutputDir {
-		_ = os.MkdirAll(c.OutputDir, 0755)
-		copyFile(c.OutputDir, c.FromDir)
-	}
-	// Read the JSON file
-	jsonData, err := os.ReadFile(c.OutputDir + "/index.json")
-	// jsonData, err := os.ReadFile("./index.json")
-	if err != nil {
-		fmt.Printf("Error reading JSON file: %s\n", err)
-		return
 	}
 
 	// Unmarshal the JSON data into a TestSuite struct
 	var suite TestSuite
-	err = json.Unmarshal(jsonData, &suite.TestCases)
-	if err != nil {
-		fmt.Printf("Error unmarshaling JSON: %s\n", err)
-		return
+	onlyOne := true
+	for _, fromDir := range c.FromDir {
+		if fromDir != c.OutputDir {
+			if onlyOne {
+				_ = os.MkdirAll(c.OutputDir, 0755)
+				onlyOne = false
+			}
+			copyFile(c.OutputDir, fromDir)
+			// Read the JSON file
+			jsonData, err := os.ReadFile(c.OutputDir + "/index.json")
+			// jsonData, err := os.ReadFile("./index.json")
+			if err != nil {
+				fmt.Printf("Error reading JSON file: %s\n", err)
+				return
+			}
+			err = json.Unmarshal(jsonData, &suite.TestCases)
+			if err != nil {
+				fmt.Printf("Error unmarshaling JSON: %s\n", err)
+				return
+			}
+		}
 	}
 
 	modifyReportFile(&suite)
@@ -350,7 +354,7 @@ func main() {
 
 	// Execute the template and write to an HTML file
 	var htmlData bytes.Buffer
-	err = t.ExecuteTemplate(&htmlData, "testsuite", struct {
+	err := t.ExecuteTemplate(&htmlData, "testsuite", struct {
 		Titles      []string
 		CaseIDs     []string
 		Suite       TestSuite
@@ -361,7 +365,7 @@ func main() {
 		return
 	}
 
-	err = os.WriteFile("index.html", htmlData.Bytes(), 0644)
+	err = os.WriteFile(c.OutputDir+"/merge_index.html", htmlData.Bytes(), 0644)
 	if err != nil {
 		fmt.Printf("Error writing HTML file: %s\n", err)
 	}
