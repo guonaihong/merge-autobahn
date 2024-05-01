@@ -26,10 +26,16 @@ var htmlTemplate = `<!DOCTYPE html>
 		/* 添加一个名为 'grey-column' 的类，用于控制第一列的灰色背景 */
         .grey-column {
             background-color: #666666;
+			width: 600px !important;
+			overflow: hidden; /* 当内容溢出时隐藏 */
+            white-space: nowrap; /* 禁止换行 */
         }
 		.green-column td:not(:first-child) {
             background-color: #00AA00;
         }
+		.black-row {
+			background-color: #333333;
+		}
 		td {
             color: white;
         }
@@ -46,7 +52,6 @@ var htmlTemplate = `<!DOCTYPE html>
 		<th>Close Behavior</th>
 		<th>Duration</th>
 		<th>Close Code</th>
-		<th>Report File</th>
 	</tr>
     {{range $caseID := .CaseIDs}}
         {{$group := findGroupTitle $caseID $.GroupTitles}}
@@ -57,8 +62,8 @@ var htmlTemplate = `<!DOCTYPE html>
 				</tr>
             {{end}}
             {{if .Title}}
-				<tr> 
-					<td> {{.Title}} </td>
+				<tr class="black-row"> 
+					<td colspan="7" > {{.Title}} </td>
 				</tr>
             {{end}}
         {{end}}
@@ -69,7 +74,6 @@ var htmlTemplate = `<!DOCTYPE html>
                     <td>{{$testCase.BehaviorClose}}</td>
                     <td>{{$testCase.Duration}}</td>
                     <td>{{$testCase.RemoteCloseCode}}</td>
-                    <td>{{$testCase.ReportFile}}</td>
                 </tr>
         {{end}}
     {{else}}
