@@ -4,10 +4,14 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"text/template"
+
+	"github.com/guonaihong/clop"
 )
 
 var htmlTemplate = `<!DOCTYPE html>
@@ -164,9 +168,64 @@ func versionCompare(version1, version2 string) int {
 	}
 	return 0
 }
+
+type Cmd struct {
+	FromDir   string `clop:"-f; --from" usage:"input directory"`
+	OutputDir string `clop:"-o; --output" usage:"output directory"`
+}
+
+// copyFile copies a file from the source to the destination.
+func copyFile(dstDir, srcDir string) {
+
+	// 获取源目录下的所有文件
+	files, err := ioutil.ReadDir(srcDir)
+	if err != nil {
+		fmt.Println("Error reading source directory:", err)
+		return
+	}
+
+	// 遍历源目录下的文件
+	for _, file := range files {
+		if file.IsDir() {
+			continue // 如果是目录则跳过
+		}
+		// 如果文件的扩展名是 .html 或 .json，则拷贝到目标目录
+		ext := filepath.Ext(file.Name())
+		if ext == ".html" || ext == ".json" {
+			// 读取源文件内容
+			srcFile := filepath.Join(srcDir, file.Name())
+			content, err := os.ReadFile(srcFile)
+			if err != nil {
+				fmt.Printf("Error reading file %s: %s\n", srcFile, err)
+				continue
+			}
+
+			// 写入目标文件
+			destFile := filepath.Join(dstDir, file.Name())
+			err = ioutil.WriteFile(destFile, content, 0644)
+			if err != nil {
+				fmt.Printf("Error writing file %s: %s\n", destFile, err)
+				continue
+			}
+			fmt.Printf("Copied %s to %s\n", srcFile, destFile)
+		}
+	}
+}
+
 func main() {
+	var c Cmd
+	clop.MustBind(&c)
+
+	if c.FromDir == "" || c.OutputDir == "" {
+		clop.Usage()
+		os.Exit(1)
+	}
+	if c.FromDir != c.OutputDir {
+		_ = os.MkdirAll(c.OutputDir, 0755)
+		copyFile(c.OutputDir, c.FromDir)
+	}
 	// Read the JSON file
-	jsonData, err := os.ReadFile("index.json")
+	jsonData, err := os.ReadFile(c.OutputDir + "/index.json")
 	if err != nil {
 		fmt.Printf("Error reading JSON file: %s\n", err)
 		return
