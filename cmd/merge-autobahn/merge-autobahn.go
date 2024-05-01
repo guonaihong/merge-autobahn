@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -43,12 +42,14 @@ var htmlTemplate = `<!DOCTYPE html>
 		td {
             color: white;
         }
+		a {
+			color: inherit;
+		}
     </style>
 
 </head>
 <body>
     <h1>Autobahn Testsuite Report</h1>
-    {{$printedGroupHeader := false}}
 	<table>
 	<tr>
 		<th>ID</th>
@@ -61,6 +62,9 @@ var htmlTemplate = `<!DOCTYPE html>
             {{if .ParentTitle}}
 				<tr> 
 					<td>{{.ParentTitle}} </td>
+					{{range $index, $title := $.Titles}}
+						<td>{{$title}}</td>
+					{{end}}
 				</tr>
             {{end}}
             {{if .Title}}
@@ -69,30 +73,35 @@ var htmlTemplate = `<!DOCTYPE html>
 				</tr>
             {{end}}
         {{end}}
-        {{with $testCase := index $.Suite.TestCases $caseID}}
-                <tr class="green-column">
-                    <td class="grey-column">Case {{$caseID}}</td>
+		{{range $index, $title := $.Titles}}
+			{{$testCases := index $.Suite.TestCases $title}}
+			{{with $testCase := index $testCases $caseID}}
+					<tr class="green-column">
+						<td class="grey-column">Case {{$caseID}}</td>
 
-					<td>
-						{{if eq $testCase.Behavior "OK"}}
-							Pass
-						{{else}}
-							{{$testCase.Behavior}}
-						{{end}}
-						<br>
-						{{if gt $testCase.Duration 0}}
-							{{$testCase.Duration}}ms
-						{{end}}
-					</td>
+						<td>
+							<a href="{{$testCase.ReportFile}}">
+								{{if eq $testCase.Behavior "OK"}}
+									Pass
+								{{else}}
+									{{$testCase.Behavior}}
+								{{end}}
+								<br>
+								{{if gt $testCase.Duration 0}}
+									{{$testCase.Duration}}ms
+								{{end}}
+							</a>
+						</td>
 
-					<td>
-						{{if eq $testCase.RemoteCloseCode 0}}
-							None
-						{{else}}
-							{{$testCase.RemoteCloseCode}}
-						{{end}}
-					</td>
-                </tr>
+						<td>
+							{{if eq $testCase.RemoteCloseCode 0}}
+								None
+							{{else}}
+								{{$testCase.RemoteCloseCode}}
+							{{end}}
+						</td>
+					</tr>
+			{{end}}
         {{end}}
     {{else}}
         <p>No test cases found.</p>
@@ -113,7 +122,7 @@ type TestCase struct {
 
 // TestSuite represents the structure of the entire test suite.
 type TestSuite struct {
-	TestCases map[string]TestCase `json:"non-tls"`
+	TestCases map[string]map[string]TestCase
 }
 
 // GroupTitle represents the title for a group of test cases.
@@ -178,7 +187,7 @@ type Cmd struct {
 func copyFile(dstDir, srcDir string) {
 
 	// 获取源目录下的所有文件
-	files, err := ioutil.ReadDir(srcDir)
+	files, err := os.ReadDir(srcDir)
 	if err != nil {
 		fmt.Println("Error reading source directory:", err)
 		return
@@ -202,12 +211,21 @@ func copyFile(dstDir, srcDir string) {
 
 			// 写入目标文件
 			destFile := filepath.Join(dstDir, file.Name())
-			err = ioutil.WriteFile(destFile, content, 0644)
+			err = os.WriteFile(destFile, content, 0644)
 			if err != nil {
 				fmt.Printf("Error writing file %s: %s\n", destFile, err)
 				continue
 			}
 			fmt.Printf("Copied %s to %s\n", srcFile, destFile)
+		}
+	}
+}
+
+func modifyReportFile(testsuite *TestSuite) {
+	for _, m := range testsuite.TestCases {
+		for k2, v := range m {
+			v.ReportFile = strings.Replace(v.ReportFile, ".json", ".html", -1)
+			m[k2] = v
 		}
 	}
 }
@@ -226,6 +244,7 @@ func main() {
 	}
 	// Read the JSON file
 	jsonData, err := os.ReadFile(c.OutputDir + "/index.json")
+	// jsonData, err := os.ReadFile("./index.json")
 	if err != nil {
 		fmt.Printf("Error reading JSON file: %s\n", err)
 		return
@@ -233,11 +252,13 @@ func main() {
 
 	// Unmarshal the JSON data into a TestSuite struct
 	var suite TestSuite
-	err = json.Unmarshal(jsonData, &suite)
+	err = json.Unmarshal(jsonData, &suite.TestCases)
 	if err != nil {
 		fmt.Printf("Error unmarshaling JSON: %s\n", err)
 		return
 	}
+
+	modifyReportFile(&suite)
 
 	// Define the group titles based on the provided information
 	groupTitles := map[string]GroupTitle{
@@ -302,26 +323,24 @@ func main() {
 
 	// Sort the test case IDs
 	var sortedCaseIDs []string
-	for caseID := range suite.TestCases {
-		sortedCaseIDs = append(sortedCaseIDs, caseID)
+	for testName := range suite.TestCases {
+		for caseID := range suite.TestCases[testName] {
+			sortedCaseIDs = append(sortedCaseIDs, caseID)
+		}
+		break
 	}
 	// sort.Strings(sortedCaseIDs)
 	sort.Slice(sortedCaseIDs, func(i, j int) bool {
 		return versionCompare(sortedCaseIDs[i], sortedCaseIDs[j]) == -1
 	})
 
+	// 保存title 只打印一次
 	status := make(map[string]bool)
 	// Define an HTML template for the output with inline CSS
 	// Create an HTML template
 	t := template.Must(template.New("testsuite").Funcs(template.FuncMap{
 		"findGroupTitle": func(caseID string, groups map[string]GroupTitle) GroupTitle {
 			return findGroupTitle(caseID, groups, status)
-		},
-		"index": func(m map[string]TestCase, key string) TestCase {
-			if v, ok := m[key]; ok {
-				return v
-			}
-			return TestCase{}
 		},
 		"getGroupTitle": func(m map[string]GroupTitle, key string) string {
 			if v, ok := m[key]; ok {
@@ -331,13 +350,20 @@ func main() {
 		},
 	}).Parse(htmlTemplate))
 
+	var title []string
+	for name := range suite.TestCases {
+		title = append(title, name)
+	}
+	sort.Strings(title)
+
 	// Execute the template and write to an HTML file
 	var htmlData bytes.Buffer
 	err = t.ExecuteTemplate(&htmlData, "testsuite", struct {
+		Titles      []string
 		CaseIDs     []string
 		Suite       TestSuite
 		GroupTitles map[string]GroupTitle
-	}{sortedCaseIDs, suite, groupTitles})
+	}{title, sortedCaseIDs, suite, groupTitles})
 	if err != nil {
 		fmt.Printf("Error executing template: %s\n", err)
 		return
