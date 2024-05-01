@@ -65,40 +65,40 @@ var htmlTemplate = `<!DOCTYPE html>
 				</tr>
             {{end}}
         {{end}}
+		<tr class="green-column">
+			<td class="grey-column">Case {{$caseID}}</td>
 		{{range $index, $title := $.Titles}}
-			{{$testCases := index $.Suite.TestCases $title}}
-			<tr class="green-column">
-				<td class="grey-column">Case {{$caseID}}</td>
+				{{$testCases := index $.Suite.TestCases $title}}
 
-				{{with $testCase := index $testCases $caseID}}
-						<td style="{{if eq $testCase.Behavior "FAILED"}}background-color: #990000;{{end}}">
-							<a href="{{$testCase.ReportFile}}">
-								{{if eq $testCase.Behavior "OK"}}
-									Pass
-								{{else if eq $testCase.Behavior "FAILED"}}
+					{{with $testCase := index $testCases $caseID}}
+							<td style="{{if eq $testCase.Behavior "FAILED"}}background-color: #990000;{{end}}">
+								<a href="{{$testCase.ReportFile}}">
+									{{if eq $testCase.Behavior "OK"}}
+										Pass
+									{{else if eq $testCase.Behavior "FAILED"}}
+										Fail
+									{{else}}
+										{{$testCase.Behavior}}
+									{{end}}
+									<br>
+									{{if gt $testCase.Duration 0}}
+										{{$testCase.Duration}}ms
+									{{end}}
+								</a>
+							</td>
+
+							<td style="{{if (eq $testCase.Behavior "FAILED")}}background-color: #990000;{{end}}">
+								{{if eq $testCase.Behavior "FAILED"}}
 									Fail
+								{{else if eq $testCase.RemoteCloseCode 0}}
+									None
 								{{else}}
-									{{$testCase.Behavior}}
+									{{$testCase.RemoteCloseCode}}
 								{{end}}
-								<br>
-								{{if gt $testCase.Duration 0}}
-									{{$testCase.Duration}}ms
-								{{end}}
-							</a>
-						</td>
-
-						<td style="{{if (eq $testCase.Behavior "FAILED")}}background-color: #990000;{{end}}">
-							{{if eq $testCase.Behavior "FAILED"}}
-								Fail
-							{{else if eq $testCase.RemoteCloseCode 0}}
-								None
-							{{else}}
-								{{$testCase.RemoteCloseCode}}
-							{{end}}
-						</td>
+							</td>
 				{{end}}
-			</tr>
         {{end}}
+		</tr>
     {{else}}
         <p>No test cases found.</p>
     {{end}}
