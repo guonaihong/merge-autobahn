@@ -36,9 +36,6 @@ var htmlTemplate = `<!DOCTYPE html>
 		.green-column td:not(:first-child) {
             background-color: #00AA00;
         }
-		.black-row {
-			background-color: #333333;
-		}
 		td {
             color: white;
         }
@@ -51,24 +48,19 @@ var htmlTemplate = `<!DOCTYPE html>
 <body>
     <h1>Autobahn Testsuite Report</h1>
 	<table>
-	<tr>
-		<th>ID</th>
-		<th>Behavior</th>
-		<th>Close Code</th>
-	</tr>
     {{range $caseID := .CaseIDs}}
         {{$group := findGroupTitle $caseID $.GroupTitles}}
         {{with $group}}
             {{if .ParentTitle}}
 				<tr> 
-					<td>{{.ParentTitle}} </td>
+					<td style="background-color: #000000">{{.ParentTitle}} </td>
 					{{range $index, $title := $.Titles}}
-						<td>{{$title}}</td>
+						<td style="background-color: #004488" colspan="2">{{$title}}</td>
 					{{end}}
 				</tr>
             {{end}}
             {{if .Title}}
-				<tr class="black-row"> 
+				<tr style="background-color: #333333"> 
 					<td colspan="7" > {{.Title}} </td>
 				</tr>
             {{end}}
@@ -95,7 +87,7 @@ var htmlTemplate = `<!DOCTYPE html>
 							</a>
 						</td>
 
-						<td style="{{if or (eq $testCase.RemoteCloseCode 0) (eq $testCase.Behavior "FAILED")}}background-color: #990000;{{end}}">
+						<td style="{{if (eq $testCase.Behavior "FAILED")}}background-color: #990000;{{end}}">
 							{{if eq $testCase.Behavior "FAILED"}}
 								Fail
 							{{else if eq $testCase.RemoteCloseCode 0}}
@@ -347,12 +339,6 @@ func main() {
 	t := template.Must(template.New("testsuite").Funcs(template.FuncMap{
 		"findGroupTitle": func(caseID string, groups map[string]GroupTitle) GroupTitle {
 			return findGroupTitle(caseID, groups, status)
-		},
-		"getGroupTitle": func(m map[string]GroupTitle, key string) string {
-			if v, ok := m[key]; ok {
-				return v.Title
-			}
-			return ""
 		},
 	}).Parse(htmlTemplate))
 
