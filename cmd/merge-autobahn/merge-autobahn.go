@@ -79,10 +79,12 @@ var htmlTemplate = `<!DOCTYPE html>
 					<tr class="green-column">
 						<td class="grey-column">Case {{$caseID}}</td>
 
-						<td>
+						<td style="{{if eq $testCase.Behavior "FAILED"}}background-color: #990000;{{end}}">
 							<a href="{{$testCase.ReportFile}}">
 								{{if eq $testCase.Behavior "OK"}}
 									Pass
+								{{else if eq $testCase.Behavior "FAILED"}}
+									Fail
 								{{else}}
 									{{$testCase.Behavior}}
 								{{end}}
@@ -93,13 +95,17 @@ var htmlTemplate = `<!DOCTYPE html>
 							</a>
 						</td>
 
-						<td>
-							{{if eq $testCase.RemoteCloseCode 0}}
+						<td style="{{if or (eq $testCase.RemoteCloseCode 0) (eq $testCase.Behavior "FAILED")}}background-color: #990000;{{end}}">
+							{{if eq $testCase.Behavior "FAILED"}}
+								Fail
+							{{else if eq $testCase.RemoteCloseCode 0}}
 								None
 							{{else}}
 								{{$testCase.RemoteCloseCode}}
 							{{end}}
 						</td>
+
+
 					</tr>
 			{{end}}
         {{end}}
