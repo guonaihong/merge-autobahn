@@ -1,10 +1,10 @@
-## 安装
+### 一、安装
 
 ```bash
 go install github.com/guonaihong/merge-autobahn/cmd/merge-autobahn@latest
 ```
 
-## 例子
+### 二、例子
 
 ```bash
 merge-autobahn -f ~/reports/servers -f ~/reports/servers2 -o ./output
@@ -12,7 +12,7 @@ merge-autobahn -f ~/reports/servers -f ~/reports/servers2 -o ./output
 // 查看 open ./output/merge_index.html
 ```
 
-## merge-autobahn  usage
+### 三、merge-autobahn  usage
 
 -f, --from: 可以指定多个输入目录
 
